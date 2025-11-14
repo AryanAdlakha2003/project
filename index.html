@@ -82,115 +82,44 @@
     }
     
     /* ---
-      *** NEW CSS: Destination Reached Pop-up ***
+      *** REPLACEMENT CSS: Fullscreen Success Overlay ***
     --- */
     
-    #destination-reached-popup {
+    #fullscreen-success-overlay {
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.7);
-      display: none; /* Changed to 'flex' by JS */
+      background: #4CAF50; /* Green background */
+      color: white;
+      display: none; /* Hidden by default */
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      z-index: 2000; /* Above all other UI */
-      pointer-events: all;
-    }
-
-    .popup-content {
-      background: white;
-      color: #333;
-      padding: 25px;
-      border-radius: 12px;
-      text-align: center;
-      width: 80%;
-      max-width: 300px;
-      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-      position: relative;
+      z-index: 2000;
       font-family: Arial, sans-serif;
-      animation: fadeIn 0.3s ease-out;
+      text-align: center;
+      pointer-events: all; /* Allow clicking the button */
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: scale(0.9); }
-      to { opacity: 1; transform: scale(1); }
+    #fullscreen-success-overlay h1 {
+      font-size: 2.5em;
+      margin: 0;
+      padding: 0 20px;
     }
 
-    .popup-content h3 {
-      margin: 15px 0 0 0;
-      font-size: 18px;
-      font-weight: 600;
-    }
-
-    .close-btn {
-      position: absolute;
-      top: 10px;
-      right: 15px;
-      font-size: 28px;
-      font-weight: bold;
-      color: #aaa;
+    #exit-nav-btn {
+      margin-top: 30px;
+      padding: 12px 25px;
+      font-size: 1.2em;
+      color: #4CAF50; /* Green text */
+      background: white; /* White button */
+      border: none;
+      border-radius: 8px;
       cursor: pointer;
     }
-    .close-btn:hover {
-      color: #333;
-    }
 
-    /* --- Animated Checkmark CSS --- */
-    .icon-container {
-      margin: 0 auto;
-    }
-
-    .checkmark-circle {
-      stroke-dasharray: 166;
-      stroke-dashoffset: 166;
-      stroke-width: 2;
-      stroke-miterlimit: 10;
-      stroke: #4CAF50;
-      fill: none;
-      animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) 0.3s forwards;
-    }
-
-    .checkmark {
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      display: block;
-      stroke-width: 3;
-      stroke: #fff;
-      stroke-miterlimit: 10;
-      margin: 0 auto;
-      box-shadow: inset 0px 0px 0px #4CAF50;
-      animation: fill .4s ease-in-out .4s forwards, 
-                 scale .3s ease-in-out .9s both;
-    }
-
-    .checkmark-check {
-      transform-origin: 50% 50%;
-      stroke-dasharray: 48;
-      stroke-dashoffset: 48;
-      animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
-    }
-
-    @keyframes stroke {
-      100% {
-        stroke-dashoffset: 0;
-      }
-    }
-    @keyframes scale {
-      0%, 100% {
-        transform: none;
-      }
-      50% {
-        transform: scale3d(1.1, 1.1, 1);
-      }
-    }
-    @keyframes fill {
-      100% {
-        box-shadow: inset 0px 0px 0px 40px #4CAF50;
-      }
-    }
   </style>
 </head>
 <body>
@@ -219,17 +148,9 @@
       Next: <span id="instruction-text">Calculating route...</span>
     </div>
     
-    <div id="destination-reached-popup" style="display: none;">
-      <div class="popup-content">
-        <span class="close-btn" onclick="closePopup()">&times;</span>
-        <div class="icon-container">
-          <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
-            <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
-            <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
-          </svg>
-        </div>
-        <h3>You've reached your destination</h3>
-      </div>
+    <div id="fullscreen-success-overlay">
+      <h1>Destination Reached</h1>
+      <button id="exit-nav-btn" onclick="hideSuccessOverlay()">Exit Navigation</button>
     </div>
     </div>
 
@@ -280,12 +201,12 @@
     }
     
     /**
-     * *** NEW FUNCTION: Close Pop-up ***
+     * *** NEW FUNCTION: Hide Fullscreen Overlay ***
      */
-    function closePopup() {
-      const popup = document.getElementById('destination-reached-popup');
-      if (popup) {
-        popup.style.display = 'none';
+    function hideSuccessOverlay() {
+      const overlay = document.getElementById('fullscreen-success-overlay');
+      if (overlay) {
+        overlay.style.display = 'none';
       }
     }
 
@@ -299,7 +220,6 @@
               lat: position.coords.latitude,
               lon: position.coords.longitude
             };
-            // Only log the *first* time
             if (!navigationActive) {
                 logStatus(`GPS Ready: ${currentPosition.lat.toFixed(4)}, ${currentPosition.lon.toFixed(4)}`);
             }
@@ -395,11 +315,11 @@
       }
     }
 
+    // --- Waypoint Extraction (Unchanged) ---
     function extractWaypoints(route) {
       const coordinates = route.geometry.coordinates;
       const waypoints = [];
       
-      // Smart sampling: ~20 waypoints + final destination
       const stepSize = Math.max(1, Math.floor(coordinates.length / 20));
       
       for (let i = 0; i < coordinates.length; i += stepSize) {
@@ -424,10 +344,6 @@
     // *** CORE NAVIGATION LOGIC (MODIFIED) ***
     // ---
     
-    /**
-     * Main Update Loop
-     * *** MODIFIED with Final Destination check ***
-     */
     function updateNavigationArrow() {
       if (!currentPosition || !navigationActive || currentWaypointIndex >= routeWaypoints.length) {
         return;
@@ -464,42 +380,35 @@
       const distanceToTarget = minDistance; 
       
       // ---
-      // *** MODIFICATION START: Check for Final Destination ***
+      // *** MODIFICATION: Check for Final Destination ***
       // ---
       
-      // Check if this *is* the last waypoint
       const isFinalWaypoint = (currentWaypointIndex === routeWaypoints.length - 1);
       
-      // If it's the final waypoint AND we're within 10m, show pop-up and stop.
-      if (isFinalWaypoint && distanceToTarget < 10) { // 10m threshold for *final* destination
+      if (isFinalWaypoint && distanceToTarget < 10) { 
         logStatus('Destination reached!');
         
-        // Show the pop-up
-        document.getElementById('destination-reached-popup').style.display = 'flex';
+        // *** Show the NEW fullscreen overlay ***
+        document.getElementById('fullscreen-success-overlay').style.display = 'flex';
         
-        // Hide the regular instructions
         document.getElementById('instructions').style.display = 'none';
         
-        // Stop navigation and hide the arrow
         stopNavigation(); 
-        return; // Stop the update loop
+        return; 
       }
       // ---
       // *** MODIFICATION END ***
       // ---
 
-      // Check if we've arrived at a *mid-route* waypoint (using the 20m threshold)
+      // --- Mid-route Waypoint Check (Unchanged) ---
       if (distanceToTarget < distanceThreshold) {
         logStatus(`Reached waypoint ${currentWaypointIndex + 1}/${routeWaypoints.length}`);
-        currentWaypointIndex++; // Move to the *next* one
+        currentWaypointIndex++; 
         
-        // Safety check, though the 'isFinalWaypoint' block should catch it first.
         if (currentWaypointIndex >= routeWaypoints.length) {
           stopNavigation();
           return;
         }
-        
-        // We've reached a waypoint, return. The next tick will find the next target.
         return;
       }
 
@@ -528,8 +437,8 @@
     // --- Main Control Functions (Improved) ---
 
     async function startNavigation() {
-      // Close pop-up if it's open
-      closePopup();
+      // *** MODIFICATION: Hide new overlay ***
+      hideSuccessOverlay();
       
       const destInput = document.getElementById('destination').value.trim();
       
@@ -579,15 +488,12 @@
 
     function stopNavigation() {
       navigationActive = false;
-      // Don't reset index here, let the 'startNavigation' handle it.
-      // routeWaypoints = [];
       
       if (updateInterval) {
         clearInterval(updateInterval);
         updateInterval = null;
       }
       
-      // Hide the arrow
       const navArrow = document.getElementById('nav-arrow');
       if (navArrow) {
         navArrow.setAttribute('visible', 'false');
