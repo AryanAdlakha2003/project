@@ -92,6 +92,12 @@
       <h3 style="margin-top: 0;">AR Navigation Setup</h3>
       
       <div>
+        <label>Mapbox Access Token:</label>
+        <input type="text" id="mapbox-token" value="pk.eyJ1IjoiYXJ5YW5kb25sb25kb24iLCJhIjoiY21odzlnbm90MDA2eTJqcXZkamtxajdjOCJ9.bqShLStraxUBB1ANLi-6ZQ">
+        <small style="color: #aaa;">Token pre-filled</small>
+      </div>
+      
+      <div>
         <label>Destination (Lat, Lon):</label>
         <input type="text" id="destination" value="26.187870872941197, 91.70008699559571">
         <small style="color: #aaa;">IIT Guwahati area</small>
@@ -99,6 +105,8 @@
       
       <button onclick="startNavigation()">Start Navigation</button>
       <button onclick="stopNavigation()">Stop Navigation</button>
+      <button onclick="testArrow()">Test Arrow (Debug)</button>
+      
       <div id="status">
         <strong>Status:</strong> Waiting to start...
       </div>
@@ -140,9 +148,6 @@
     let currentWaypointIndex = 0;
     let distanceThreshold = 20; // 20 meters
     let updateInterval = null;
-    // Hardcode the token here for security
-    const MAPBOX_ACCESS_TOKEN = "pk.eyJ1IjoiYXJ5YW5kb25sb25kb24iLCJhIjoiY21odzlnbm90MDA2eTJqcXZkamtxajdjOCJ9.bqShLStraxUBB1ANLi-6ZQ";
-
 
     // --- UI & Logging Functions (Unchanged) ---
     function togglePanel() {
@@ -153,23 +158,21 @@
     function logStatus(message) {
       const status = document.getElementById('status');
       const timestamp = new Date().toLocaleTimeString();
-      status.innerHTML = `<strong>[${timestamp}]</strong> ${message}<br>` + status.innerHTML;
+      status.innerHTML = <strong>[${timestamp}]</strong> ${message}<br> + status.innerHTML;
     }
 
     // --- Geolocation Functions (Unchanged) ---
     function startPositionTracking() {
       if (navigator.geolocation) {
-        logStatus('Waiting for GPS lock...');
         navigator.geolocation.watchPosition(
           (position) => {
             currentPosition = {
               lat: position.coords.latitude,
               lon: position.coords.longitude
             };
-            logStatus(`GPS Ready: ${currentPosition.lat.toFixed(4)}, ${currentPosition.lon.toFixed(4)}`);
           },
           (error) => {
-            logStatus(`GPS Error: ${error.message}`);
+            logStatus(GPS Error: ${error.message});
           },
           {
             enableHighAccuracy: true,
@@ -216,33 +219,32 @@
       return R * c; // in meters
     }
 
-    // --- Mapbox API Functions (Modified) ---
+    // --- Mapbox API Functions (Unchanged) ---
     async function fetchRoute(destLat, destLon) {
-      // Use the hardcoded constant token
-      const token = MAPBOX_ACCESS_TOKEN; 
+      const token = document.getElementById('mapbox-token').value.trim();
       
       if (!token) {
-        logStatus('Error: Mapbox token is missing.');
+        alert('Please enter your Mapbox access token');
         return null;
       }
       
       if (!currentPosition) {
-        logStatus('Waiting for GPS position...');
+        alert('Waiting for GPS position...');
         return null;
       }
       
       logStatus('Fetching route from Mapbox...');
       
-      const startCoords = `${currentPosition.lon},${currentPosition.lat}`;
-      const endCoords = `${destLon},${destLat}`;
+      const startCoords = ${currentPosition.lon},${currentPosition.lat};
+      const endCoords = ${destLon},${destLat};
       
-      const url = `https://api.mapbox.com/directions/v5/mapbox/walking/${startCoords};${endCoords}?geometries=geojson&steps=true&access_token=${token}`;
+      const url = https://api.mapbox.com/directions/v5/mapbox/walking/${startCoords};${endCoords}?geometries=geojson&steps=true&access_token=${token};
       
       try {
         const response = await fetch(url);
         
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error(HTTP error! status: ${response.status});
         }
         
         const data = await response.json();
@@ -255,7 +257,7 @@
           return null;
         }
       } catch (error) {
-        logStatus(`Error fetching route: ${error.message}`);
+        logStatus(Error fetching route: ${error.message});
         return null;
       }
     }
@@ -285,73 +287,143 @@
       return waypoints;
     }
 
-    // --- CORE NAVIGATION LOGIC (Modified to remove testArrow dependency) ---
-    
+    // --- 
+    // *** CORE NAVIGATION LOGIC (IMPROVED) ***
+    // ---
+
     /**
-     * Main Update Loop
+     * *** IMPROVED: Updated Test Function ***
+     * Makes the arrow visible and spins it.
      */
-    function updateNavigationArrow() {
-      if (!currentPosition || !navigationActive || currentWaypointIndex >= routeWaypoints.length) {
-        return;
-      }
-      
+    function testArrow() {
+      logStatus('Testing arrow...');
       const navArrow = document.getElementById('nav-arrow');
       const arrowRotator = document.getElementById('arrow-rotator');
-      const camera = document.getElementById('camera');
       
-      if (!navArrow || !arrowRotator || !camera) {
-        logStatus("Error: AR entities not found.");
-        return;
+      if (navArrow && arrowRotator) {
+        navArrow.setAttribute('visible', 'true');
+        
+        // Add a spinning animation to the rotator
+        arrowRotator.setAttribute('animation', {
+          property: 'rotation',
+          to: '0 360 0',
+          loop: true,
+          dur: 4000,
+          easing: 'linear'
+        });
+        logStatus('Test arrow visible and spinning.');
       }
+    }
 
-      const nextWaypoint = routeWaypoints[currentWaypointIndex];
+    /**
+     * *** IMPROVED: Main Update Loop ***
+     * This function now only UPDATES the arrow, it doesn't create it.
+     */
+    /**
+   * Main Update Loop
+   * *** MODIFIED with dynamic waypoint snapping ***
+   */
+  function updateNavigationArrow() {
+    if (!currentPosition || !navigationActive || currentWaypointIndex >= routeWaypoints.length) {
+      return;
+    }
+    
+    const navArrow = document.getElementById('nav-arrow');
+    const arrowRotator = document.getElementById('arrow-rotator');
+    const camera = document.getElementById('camera');
+    
+    if (!navArrow || !arrowRotator || !camera) {
+      logStatus("Error: AR entities not found.");
+      return;
+    }
+
+    // ---
+    // *** MODIFICATION START: Dynamic Waypoint Snapping ***
+    // ---
+
+    // 1. Find the closest waypoint in the *remaining* route
+    let closestIndex = currentWaypointIndex;
+    let minDistance = Infinity;
+
+    // Loop from the current index to the end of the route
+    for (let i = currentWaypointIndex; i < routeWaypoints.length; i++) {
       const distance = calculateDistance(
         currentPosition.lat,
         currentPosition.lon,
-        nextWaypoint.lat,
-        nextWaypoint.lon
+        routeWaypoints[i].lat,
+        routeWaypoints[i].lon
       );
 
-      // Check if reached waypoint
-      if (distance < distanceThreshold) {
-        logStatus(`Reached waypoint ${currentWaypointIndex + 1}/${routeWaypoints.length}`);
-        currentWaypointIndex++;
-        
-        if (currentWaypointIndex >= routeWaypoints.length) {
-          logStatus('Destination reached!');
-          document.getElementById('instructions').style.display = 'none';
-          stopNavigation();
-          return;
-        }
+      // If this waypoint is closer than the current 'minDistance',
+      // update our target.
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestIndex = i;
       }
-
-      // Calculate absolute bearing to the next waypoint
-      const bearing = calculateBearing(
-        currentPosition.lat,
-        currentPosition.lon,
-        nextWaypoint.lat,
-        nextWaypoint.lon
-      );
-
-      // Get the camera's current absolute heading from the compass
-      // object3D.rotation is in radians
-      const cameraRotation = camera.object3D.rotation.y; 
-      const cameraHeading = THREE.MathUtils.radToDeg(cameraRotation);
-      
-      // Calculate the arrow's rotation relative to the camera
-      // This is the magic: (Target Bearing) - (Current Camera Heading)
-      const relativeBearing = bearing - cameraHeading;
-      
-      // Set the arrow's rotation and make it visible
-      arrowRotator.setAttribute('rotation', `0 ${relativeBearing} 0`);
-      navArrow.setAttribute('visible', 'true');
-
-      // Update instruction text
-      const instructionText = document.getElementById('instruction-text');
-      instructionText.textContent = `${Math.round(distance)}m to waypoint ${currentWaypointIndex + 1}/${routeWaypoints.length}`;
-      
-      logStatus(`Arrow updated: bearing ${Math.round(bearing)}°, dist ${Math.round(distance)}m`);
     }
+
+    // 2. "Snap" the current index to the closest one we found
+    // This handles cases where the user skipped ahead
+    currentWaypointIndex = closestIndex;
+
+    const nextWaypoint = routeWaypoints[currentWaypointIndex];
+    // We already have the distance to this target from our loop
+    const distanceToTarget = minDistance; 
+
+    // ---
+    // *** MODIFICATION END ***
+    // ---
+
+    // 3. Check if we've arrived at this (new) target waypoint
+    // (This logic is the same as before, but it now uses 'distanceToTarget')
+    if (distanceToTarget < distanceThreshold) {
+      logStatus(`Reached waypoint ${currentWaypointIndex + 1}/${routeWaypoints.length}`);
+      currentWaypointIndex++; // Move to the *next* one
+      
+      if (currentWaypointIndex >= routeWaypoints.length) {
+        logStatus('Destination reached!');
+        document.getElementById('instructions').style.display = 'none';
+        stopNavigation();
+        return;
+      }
+      
+      // We've reached a waypoint, so we'll just return.
+      // The next function call in 2 seconds will find the *next* closest waypoint.
+      return;
+    }
+
+    // 4. If not arrived, calculate bearing to the 'nextWaypoint'
+    const bearing = calculateBearing(
+      currentPosition.lat,
+      currentPosition.lon,
+      nextWaypoint.lat,
+      nextWaypoint.lon
+    );
+
+    // Get the camera's current absolute heading from the compass
+    // object3D.rotation is in radians
+    const cameraRotation = camera.object3D.rotation.y; 
+    const cameraHeading = THREE.MathUtils.radToDeg(cameraRotation);
+    
+    // Calculate the arrow's rotation relative to the camera
+    // This is the magic: (Target Bearing) - (Current Camera Heading)
+    const relativeBearing = bearing - cameraHeading;
+    
+    // Set the arrow's rotation and make it visible
+    arrowRotator.setAttribute('rotation', `0 ${relativeBearing} 0`);
+    navArrow.setAttribute('visible', 'true');
+
+    // Update instruction text
+    const instructionText = document.getElementById('instruction-text');
+    instructionText.textContent = `${Math.round(distanceToTarget)}m to waypoint ${currentWaypointIndex + 1}/${routeWaypoints.length}`;
+    
+    logStatus(`Arrow updated: Target WP ${currentWaypointIndex + 1}. Bearing ${Math.round(bearing)}°, dist ${Math.round(distanceToTarget)}m`);
+  }
+
+    /**
+     * *** REMOVED createNavigationArrow function ***
+     * It is no longer needed.
+     */
 
     // --- Main Control Functions (Improved) ---
 
@@ -379,7 +451,7 @@
         return;
       }
       
-      // Stop any animation that might be running (e.g. if testArrow was manually added back)
+      // Stop any test animations
       const arrowRotator = document.getElementById('arrow-rotator');
       if (arrowRotator) arrowRotator.removeAttribute('animation');
 
@@ -393,7 +465,7 @@
       routeWaypoints = extractWaypoints(route);
       currentWaypointIndex = 0;
       
-      logStatus(`Route: ${routeWaypoints.length} waypoints, ${Math.round(route.distance)}m`);
+      logStatus(Route: ${routeWaypoints.length} waypoints, ${Math.round(route.distance)}m);
       
       document.getElementById('instructions').style.display = 'block';
       navigationActive = true;
@@ -415,11 +487,11 @@
         updateInterval = null;
       }
       
-      // Hide the arrow
+      // Hide the arrow, don't destroy it
       const navArrow = document.getElementById('nav-arrow');
       if (navArrow) {
         navArrow.setAttribute('visible', 'false');
-        // Stop any animation
+        // Stop any test animations
         const arrowRotator = document.getElementById('arrow-rotator');
         if (arrowRotator) arrowRotator.removeAttribute('animation');
       }
@@ -430,6 +502,7 @@
 
     // --- Initialize ---
     window.addEventListener('load', () => {
+      logStatus('App loaded. Requesting GPS...');
       startPositionTracking();
       
       // Auto-collapse panel after 5s
