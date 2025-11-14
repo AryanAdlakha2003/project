@@ -10,7 +10,7 @@
   <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
   
   <style>
-    /* Your existing CSS is great. No changes needed. */
+    /* --- Your Existing CSS (Unchanged) --- */
     body {
       margin: 0;
       overflow: hidden;
@@ -80,6 +80,117 @@
       cursor: pointer;
       pointer-events: all;
     }
+    
+    /* ---
+      *** NEW CSS: Destination Reached Pop-up ***
+    --- */
+    
+    #destination-reached-popup {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: none; /* Changed to 'flex' by JS */
+      align-items: center;
+      justify-content: center;
+      z-index: 2000; /* Above all other UI */
+      pointer-events: all;
+    }
+
+    .popup-content {
+      background: white;
+      color: #333;
+      padding: 25px;
+      border-radius: 12px;
+      text-align: center;
+      width: 80%;
+      max-width: 300px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+      position: relative;
+      font-family: Arial, sans-serif;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .popup-content h3 {
+      margin: 15px 0 0 0;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      font-size: 28px;
+      font-weight: bold;
+      color: #aaa;
+      cursor: pointer;
+    }
+    .close-btn:hover {
+      color: #333;
+    }
+
+    /* --- Animated Checkmark CSS --- */
+    .icon-container {
+      margin: 0 auto;
+    }
+
+    .checkmark-circle {
+      stroke-dasharray: 166;
+      stroke-dashoffset: 166;
+      stroke-width: 2;
+      stroke-miterlimit: 10;
+      stroke: #4CAF50;
+      fill: none;
+      animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) 0.3s forwards;
+    }
+
+    .checkmark {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      display: block;
+      stroke-width: 3;
+      stroke: #fff;
+      stroke-miterlimit: 10;
+      margin: 0 auto;
+      box-shadow: inset 0px 0px 0px #4CAF50;
+      animation: fill .4s ease-in-out .4s forwards, 
+                 scale .3s ease-in-out .9s both;
+    }
+
+    .checkmark-check {
+      transform-origin: 50% 50%;
+      stroke-dasharray: 48;
+      stroke-dashoffset: 48;
+      animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+    }
+
+    @keyframes stroke {
+      100% {
+        stroke-dashoffset: 0;
+      }
+    }
+    @keyframes scale {
+      0%, 100% {
+        transform: none;
+      }
+      50% {
+        transform: scale3d(1.1, 1.1, 1);
+      }
+    }
+    @keyframes fill {
+      100% {
+        box-shadow: inset 0px 0px 0px 40px #4CAF50;
+      }
+    }
   </style>
 </head>
 <body>
@@ -92,12 +203,6 @@
       <h3 style="margin-top: 0;">AR Navigation Setup</h3>
       
       <div>
-        <label>Mapbox Access Token:</label>
-        <input type="text" id="mapbox-token" value="pk.eyJ1IjoiYXJ5YW5kb25sb25kb24iLCJhIjoiY21odzlnbm90MDA2eTJqcXZkamtxajdjOCJ9.bqShLStraxUBB1ANLi-6ZQ">
-        <small style="color: #aaa;">Token pre-filled</small>
-      </div>
-      
-      <div>
         <label>Destination (Lat, Lon):</label>
         <input type="text" id="destination" value="26.187870872941197, 91.70008699559571">
         <small style="color: #aaa;">IIT Guwahati area</small>
@@ -105,8 +210,6 @@
       
       <button onclick="startNavigation()">Start Navigation</button>
       <button onclick="stopNavigation()">Stop Navigation</button>
-      <button onclick="testArrow()">Test Arrow (Debug)</button>
-      
       <div id="status">
         <strong>Status:</strong> Waiting to start...
       </div>
@@ -115,7 +218,20 @@
     <div id="instructions" style="display: none;">
       Next: <span id="instruction-text">Calculating route...</span>
     </div>
-  </div>
+    
+    <div id="destination-reached-popup" style="display: none;">
+      <div class="popup-content">
+        <span class="close-btn" onclick="closePopup()">&times;</span>
+        <div class="icon-container">
+          <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+            <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+            <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+          </svg>
+        </div>
+        <h3>You've reached your destination</h3>
+      </div>
+    </div>
+    </div>
 
   <a-scene
     vr-mode-ui="enabled: false"
@@ -126,7 +242,7 @@
       <a-mixin 
         id="arrow-shape"
         rotation="-90 0 0"
-        material="color: #FF0000; shader: flat"
+        material="color: #FF0000; shader: flat; opacity: 0.8; transparent: true"
         geometry="primitive: cone; radiusBottom: 0.8; radiusTop: 0; height: 2.5">
       </a-mixin>
     </a-assets>
@@ -150,15 +266,6 @@
     let updateInterval = null;
     const MAPBOX_ACCESS_TOKEN = "pk.eyJ1IjoiYXJ5YW5kb25sb25kb24iLCJhIjoiY21odzlnbm90MDA2eTJqcXZkamtxajdjOCJ9.bqShLStraxUBB1ANLi-6ZQ";
 
-    // ---
-    // *** MODIFICATION: New global variables ***
-    // ---
-    let finalDestinationCoords = null; // To store the final lat/lon
-    let routeSteps = []; // To store the text instructions
-    let isRecalculating = false; // Flag to prevent API spam
-    const OFF_ROUTE_THRESHOLD = 50; // 50 meters
-    // ---
-
 
     // --- UI & Logging Functions ---
     function togglePanel() {
@@ -172,6 +279,9 @@
       status.innerHTML = `<strong>[${timestamp}]</strong> ${message}<br>` + status.innerHTML;
     }
     
+    /**
+     * *** NEW FUNCTION: Close Pop-up ***
+     */
     function closePopup() {
       const popup = document.getElementById('destination-reached-popup');
       if (popup) {
@@ -285,73 +395,39 @@
       }
     }
 
-    // ---
-    // *** MODIFICATION: Replaced 'extractWaypoints' ***
-    // This function now saves both waypoints (for the arrow) 
-    // and steps (for instructions).
-    // ---
-    function extractWaypointsAndSteps(route) {
-      routeWaypoints = [];
-      routeSteps = [];
-      currentWaypointIndex = 0;
+    function extractWaypoints(route) {
+      const coordinates = route.geometry.coordinates;
+      const waypoints = [];
       
-      if (!route.legs || !route.legs[0] || !route.legs[0].steps) {
-        logStatus("Error: No steps found in route.");
-        return;
-      }
-
-      // Save the full step data
-      routeSteps = route.legs[0].steps; 
-
-      // Create waypoints from the *start* of each step's maneuver
-      for (const step of routeSteps) {
-        routeWaypoints.push({
-          lon: step.maneuver.location[0],
-          lat: step.maneuver.location[1]
+      // Smart sampling: ~20 waypoints + final destination
+      const stepSize = Math.max(1, Math.floor(coordinates.length / 20));
+      
+      for (let i = 0; i < coordinates.length; i += stepSize) {
+        waypoints.push({
+          lon: coordinates[i][0],
+          lat: coordinates[i][1]
         });
       }
-
-      // IMPORTANT: Add the final destination as the last waypoint
-      // (The last "step" is usually "you have arrived", 
-      // but its location might not be the *exact* destination coordinate)
-      const finalCoords = route.geometry.coordinates;
-      const lastCoord = finalCoords[finalCoords.length - 1];
-      routeWaypoints.push({
-        lon: lastCoord[0],
-        lat: lastCoord[1]
-      });
-
-      logStatus(`Route processed: ${routeSteps.length} steps, ${routeWaypoints.length} waypoints.`);
-    }
-
-    // ---
-    // *** MODIFICATION: New function for re-routing ***
-    // ---
-    async function handleRecalculation() {
-      // Don't reroute if we're already fetching, or if we don't have a destination
-      if (isRecalculating || !finalDestinationCoords) return;
-
-      isRecalculating = true;
-      logStatus("Off-route. Recalculating...");
-
-      const route = await fetchRoute(finalDestinationCoords.lat, finalDestinationCoords.lon);
       
-      if (route) {
-        logStatus("New route calculated.");
-        extractWaypointsAndSteps(route); // Process the new route
-      } else {
-        logStatus("Failed to recalculate route.");
+      if (coordinates.length > 0) {
+        const last = coordinates[coordinates.length - 1];
+        waypoints.push({
+          lon: last[0],
+          lat: last[1]
+        });
       }
-
-      // Add a 5-second cooldown to prevent API spam
-      setTimeout(() => { isRecalculating = false; }, 5000); 
+      
+      return waypoints;
     }
-
 
     // --- 
     // *** CORE NAVIGATION LOGIC (MODIFIED) ***
     // ---
     
+    /**
+     * Main Update Loop
+     * *** MODIFIED with Final Destination check ***
+     */
     function updateNavigationArrow() {
       if (!currentPosition || !navigationActive || currentWaypointIndex >= routeWaypoints.length) {
         return;
@@ -388,38 +464,42 @@
       const distanceToTarget = minDistance; 
       
       // ---
-      // *** MODIFICATION: Off-Route Check ***
-      // ---
-      if (distanceToTarget > OFF_ROUTE_THRESHOLD) {
-        handleRecalculation(); // Trigger a new route
-        return; // Stop this update, wait for new route
-      }
-
-      // ---
-      // *** MODIFICATION: Final Destination Check ***
-      // (This logic is now more robust)
+      // *** MODIFICATION START: Check for Final Destination ***
       // ---
       
       // Check if this *is* the last waypoint
       const isFinalWaypoint = (currentWaypointIndex === routeWaypoints.length - 1);
       
-      if (isFinalWaypoint && distanceToTarget < 10) { 
+      // If it's the final waypoint AND we're within 10m, show pop-up and stop.
+      if (isFinalWaypoint && distanceToTarget < 10) { // 10m threshold for *final* destination
         logStatus('Destination reached!');
+        
+        // Show the pop-up
         document.getElementById('destination-reached-popup').style.display = 'flex';
+        
+        // Hide the regular instructions
         document.getElementById('instructions').style.display = 'none';
+        
+        // Stop navigation and hide the arrow
         stopNavigation(); 
-        return; 
+        return; // Stop the update loop
       }
-      
-      // --- Mid-route Waypoint Check (Unchanged) ---
+      // ---
+      // *** MODIFICATION END ***
+      // ---
+
+      // Check if we've arrived at a *mid-route* waypoint (using the 20m threshold)
       if (distanceToTarget < distanceThreshold) {
-        logStatus(`Reached step ${currentWaypointIndex + 1}/${routeWaypoints.length}`);
+        logStatus(`Reached waypoint ${currentWaypointIndex + 1}/${routeWaypoints.length}`);
         currentWaypointIndex++; // Move to the *next* one
         
+        // Safety check, though the 'isFinalWaypoint' block should catch it first.
         if (currentWaypointIndex >= routeWaypoints.length) {
           stopNavigation();
           return;
         }
+        
+        // We've reached a waypoint, return. The next tick will find the next target.
         return;
       }
 
@@ -433,34 +513,22 @@
 
       const cameraRotation = camera.object3D.rotation.y; 
       const cameraHeading = THREE.MathUtils.radToDeg(cameraRotation);
+      
       const relativeBearing = bearing - cameraHeading;
       
       arrowRotator.setAttribute('rotation', `0 ${relativeBearing} 0`);
       navArrow.setAttribute('visible', 'true');
 
-      // ---
-      // *** MODIFICATION: Update Instruction Text ***
-      // ---
       const instructionText = document.getElementById('instruction-text');
+      instructionText.textContent = `${Math.round(distanceToTarget)}m to waypoint ${currentWaypointIndex + 1}/${routeWaypoints.length}`;
       
-      // Check if we have a matching "step" instruction
-      if (routeSteps[currentWaypointIndex]) {
-        const currentStep = routeSteps[currentWaypointIndex];
-        const instruction = currentStep.maneuver.instruction;
-        // Display: "(120m) Turn left onto Main Street"
-        instructionText.textContent = `(${Math.round(distanceToTarget)}m) ${instruction}`;
-      } else {
-        // Fallback for the very last waypoint (which has no "step")
-        instructionText.textContent = `${Math.round(distanceToTarget)}m to your destination`;
-      }
-      // ---
-      
-      logStatus(`Arrow updated: Target Step ${currentWaypointIndex + 1}. dist ${Math.round(distanceToTarget)}m`);
+      logStatus(`Arrow updated: Target WP ${currentWaypointIndex + 1}. Bearing ${Math.round(bearing)}°, dist ${Math.round(distanceToTarget)}m`);
     }
 
-    // --- Main Control Functions (Modified) ---
+    // --- Main Control Functions (Improved) ---
 
     async function startNavigation() {
+      // Close pop-up if it's open
       closePopup();
       
       const destInput = document.getElementById('destination').value.trim();
@@ -477,17 +545,11 @@
         return;
       }
       
-      // ---
-      // *** MODIFICATION: Save the final destination ***
-      // ---
-      finalDestinationCoords = { lat, lon };
-      isRecalculating = false; // Reset flag
-      
       logStatus('Starting navigation...');
       
       if (!currentPosition) {
         logStatus('Waiting for GPS lock...');
-        setTimeout(startNavigation, 2000); 
+        setTimeout(startNavigation, 2000); // Retry
         return;
       }
       
@@ -501,12 +563,10 @@
         return;
       }
       
-      // ---
-      // *** MODIFICATION: Use new processing function ***
-      // ---
-      extractWaypointsAndSteps(route);
+      routeWaypoints = extractWaypoints(route);
+      currentWaypointIndex = 0;
       
-      logStatus(`Route: ${routeSteps.length} steps, ${Math.round(route.distance)}m`);
+      logStatus(`Route: ${routeWaypoints.length} waypoints, ${Math.round(route.distance)}m`);
       
       document.getElementById('instructions').style.display = 'block';
       navigationActive = true;
@@ -519,20 +579,15 @@
 
     function stopNavigation() {
       navigationActive = false;
-      
-      // ---
-      // *** MODIFICATION: Clear route data ***
-      // ---
-      routeWaypoints = [];
-      routeSteps = [];
-      finalDestinationCoords = null; // Clear destination
-      currentWaypointIndex = 0;
+      // Don't reset index here, let the 'startNavigation' handle it.
+      // routeWaypoints = [];
       
       if (updateInterval) {
         clearInterval(updateInterval);
         updateInterval = null;
       }
       
+      // Hide the arrow
       const navArrow = document.getElementById('nav-arrow');
       if (navArrow) {
         navArrow.setAttribute('visible', 'false');
@@ -544,7 +599,7 @@
       logStatus('Navigation stopped');
     }
 
-    // --- Initialize (Unchanged) ---
+    // --- Initialize ---
     window.addEventListener('load', () => {
       startPositionTracking();
       
